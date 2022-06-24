@@ -1,4 +1,6 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# TODO Re add solhint task
 # yarn solhint && yarn lint && yarn test
+yarn lint && yarn test
