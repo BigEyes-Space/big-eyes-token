@@ -380,11 +380,11 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         require(_isExcluded[account], "Account is already included");
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
-                _excluded[i] = _excluded[_excluded.length - 1];
                 uint256 prev_reflection=_reflectionOwned[account];
                 _reflectionOwned[account] = reflectionFromToken(_tokenOwned[account]);
-                reflectionAccountability.rTotal = reflectionAccountability.rTotal - (_reflectionOwned[account] - prev_reflection);
+                reflectionAccountability.rTotal = reflectionAccountability.rTotal + _reflectionOwned[account] - prev_reflection;
                 _isExcluded[account] = false;
+                _excluded[i] = _excluded[_excluded.length - 1];
                 _excluded.pop();
                 break;
             }

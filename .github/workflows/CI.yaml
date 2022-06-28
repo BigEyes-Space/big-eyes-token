@@ -35,6 +35,7 @@ jobs:
             ${{ matrix.os }}-yarn-
 
       - run: yarn
+      # TODO Re add solhint task
       # - run: yarn solhint
       - run: yarn lint
       - run: yarn coverage
