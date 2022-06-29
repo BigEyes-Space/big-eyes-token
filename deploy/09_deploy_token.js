@@ -14,6 +14,8 @@ const func = async (hre) => {
   let router
   if (hre.network.name === 'bscTestnet') {
     router = await ethers.getContractAt('UniswapV2Router02', '0x5ac1885197ab45dd0e0d756bf90749bf94c2a05d')
+  } else if (hre.network.name === 'rinkeby') {
+    router = await ethers.getContractAt('UniswapV2Router02', '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D')
   } else {
     router = await deployments.get('UniswapV2Router02')
   }
