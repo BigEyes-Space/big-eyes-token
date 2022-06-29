@@ -19,8 +19,8 @@ const getDeploymentArguments = async (artifacts) => {
     initialBalance,
     slippageFactor,
     routerAddress,
-    onBuyFees: [0, 0, 0], // liquidity, marketing, distribution
-    onSellFees: [0, 0, 0] // liquidity, marketing, distribution
+    onBuyFees: [1, 2, 3], // liquidity, marketing, distribution
+    onSellFees: [4, 5, 6] // liquidity, marketing, distribution
   }
 }
 

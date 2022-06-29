@@ -53,6 +53,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     address[] private _excluded;
 
     uint256 private constant _MAX = ~uint256(0);
+    uint256 private constant _FEE_DIVISOR = 1000;
 
     uint256 public launchedAt;
 
@@ -254,9 +255,9 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
     function _normalBuy(address sender, address recipient, uint256 amount) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(100);
-        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(100);
-        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(100);
+        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(_FEE_DIVISOR);
+        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(_FEE_DIVISOR);
+        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(_FEE_DIVISOR);
         uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
         updateBalance(sender, amount, currentRate, false);
         updateBalance(recipient, transferAmount, currentRate, true);
@@ -272,9 +273,9 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
     function _normalSell(address sender, address recipient, uint256 amount) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(100);
-        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(100);
-        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(100);
+        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(_FEE_DIVISOR);
+        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(_FEE_DIVISOR);
+        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(_FEE_DIVISOR);
         uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
 
         updateBalance(sender, amount, currentRate, false);

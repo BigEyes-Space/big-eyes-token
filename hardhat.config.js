@@ -57,6 +57,10 @@ const config = {
     ]
   },
   networks: {
+    bscTestnet: {
+      url: nodeUrl('bscTestnet'),
+      accounts: accounts('bscTestnet')
+    },
     rinkeby: {
       url: nodeUrl('rinkeby'),
       accounts: accounts('rinkeby')

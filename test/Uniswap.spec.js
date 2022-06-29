@@ -6,6 +6,8 @@ import { expect } from './utils/chai-setup'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 
+const feesReduction = (theArray) => theArray.reduce((total, num) => total + num / 1000, 0)
+
 const addLiquidity = async (self, supplier, amounts) => {
   const bigEyesAmount = amounts[0]
   const wETHAmount = amounts[1]
@@ -65,6 +67,17 @@ const swapExactTokensForTokens = async (self, liquiditySupply) => {
   return { initialBalance, endBalance, idealAmountOfBigEyesToReceive }
 }
 
+const deductionsCheck = (endBalance, initialBalance, idealAmountOfBigEyesToReceive) => {
+  expect(endBalance).to.be.gt(initialBalance)
+
+  const expectedDeduction = idealAmountOfBigEyesToReceive.toNumber() * (1 - (1 - this.uniSwapFee) * (1 - this.slippage) * (1 - this.accumulatedOnBuyFees) * (1 - this.accumulatedOnSellFees))
+  const deduction = idealAmountOfBigEyesToReceive.sub(endBalance)
+  const error = expectedDeduction - deduction.toNumber()
+  const errorRatio = error / deduction.toNumber()
+  // console.log(`Error ${errorRatio*100} %`)
+  expect(Math.abs(errorRatio)).to.be.lessThan(1e-6)
+}
+
 describe('Uniswap router contract', () => {
   beforeEach(async () => {
     await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'SafeMath', 'RoundDiv', 'WETH', 'Strings', 'StringsLib'])
@@ -92,6 +105,11 @@ describe('Uniswap router contract', () => {
         this.first,
         liquiditySupply
       )
+      // considering 0.3% fee and additional 0.04982516215667% slippage
+      this.slippage = 0.0004982516215667
+      this.uniSwapFee = 0.003
+      this.accumulatedOnBuyFees = feesReduction(this.onBuyFees)
+      this.accumulatedOnSellFees = feesReduction(this.onSellFees)
     })
     describe('A second user should be able to:', async () => {
       it('swap exact ETH for tokens', async () => {
@@ -107,19 +125,11 @@ describe('Uniswap router contract', () => {
           { value: amountOfEthToSwap }
         )
         const endBalance = await this.bigEyes.balanceOf(this.second.address)
-        expect(endBalance).to.be.gt(initialBalance)
-        // considering 0.3% fee and additional 0.1% slippage
-        expect(endBalance).to.be.at.least(
-          idealAmountOfBigEyesToReceive.sub(idealAmountOfBigEyesToReceive.mul(3 + 1).div(1000))
-        )
+        deductionsCheck(endBalance, initialBalance, idealAmountOfBigEyesToReceive)
       })
       it('swap exact tokens for tokens', async () => {
         const { initialBalance, endBalance, idealAmountOfBigEyesToReceive } = await swapExactTokensForTokens(this, liquiditySupply)
-        expect(endBalance).to.be.gt(initialBalance)
-        // considering 0.3% fee and additional 0.1% slippage
-        expect(endBalance).to.be.at.least(
-          idealAmountOfBigEyesToReceive.sub(idealAmountOfBigEyesToReceive.mul(3 + 1).div(1000))
-        )
+        deductionsCheck(endBalance, initialBalance, idealAmountOfBigEyesToReceive)
       })
     })
   })

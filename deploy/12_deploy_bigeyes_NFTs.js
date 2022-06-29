@@ -27,4 +27,4 @@ const func = async (hre) => {
 }
 export default func
 func.tags = ['BigEyesNFTs']
-module.exports.dependencies = ['Bytes32Utils', 'UniswapV2Router02', 'BigEyes', 'Strings', 'StringsLib']
+module.exports.dependencies = ['Bytes32Utils', 'BigEyes', 'Strings', 'StringsLib']
