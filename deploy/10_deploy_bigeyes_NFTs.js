@@ -8,7 +8,6 @@ const func = async (hre) => {
   const { deploy } = deployments
   const namedSigners = await getNamedSigners()
   const { deployer } = namedSigners
-  // const strings = await getContract('Strings')
   // const stringsLib = await getContract('StringsLib')
   const bytes32UtilsLibrary = await getContract('Bytes32Utils')
   const bigEyes = await getContract('BigEyes')
@@ -17,7 +16,6 @@ const func = async (hre) => {
   const args = Object.values(deploymentArgs)
   const libraries = {
     Bytes32Utils: bytes32UtilsLibrary.address
-    // Strings: strings.address,
     // StringsLib: stringsLib.address
   }
   const bigEyesNfts = await deploy('BigEyesNFTs', {
@@ -33,4 +31,4 @@ const func = async (hre) => {
 }
 export default func
 func.tags = ['BigEyesNFTs']
-module.exports.dependencies = ['Bytes32Utils', 'BigEyes', 'Strings', 'StringsLib']
+module.exports.dependencies = ['Bytes32Utils', 'BigEyes', 'StringsLib']

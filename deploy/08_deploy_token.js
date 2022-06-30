@@ -10,8 +10,7 @@ const func = async (hre) => {
   const namedSigners = await getNamedSigners()
   const { deployer } = namedSigners
   const aBDKMathQuadLibrary = await getContract('ABDKMathQuad')
-  // const roundDiv = await deployments.get('RoundDiv')
-  // const safeMath = await deployments.get('SafeMath')
+  const roundDiv = await deployments.get('RoundDiv')
   let router
   if (hre.network.name === 'bscTestnet') {
     router = await ethers.getContractAt('UniswapV2Router02', '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3') // https://pancake.kiemtienonline360.com/
@@ -24,9 +23,8 @@ const func = async (hre) => {
   const args = Object.values(deploymentArgs)
 
   const libraries = {
-    ABDKMathQuad: aBDKMathQuadLibrary.address
-    // RoundDiv: roundDiv.address,
-    // SafeMath: safeMath.address
+    ABDKMathQuad: aBDKMathQuadLibrary.address,
+    RoundDiv: roundDiv.address
   }
 
   const bigEyes = await deploy('BigEyes', {
@@ -42,4 +40,4 @@ const func = async (hre) => {
 }
 export default func
 func.tags = ['BigEyes']
-module.exports.dependencies = ['UniswapV2Router02', 'ABDKMathQuad', 'RoundDiv', 'SafeMath']
+module.exports.dependencies = ['UniswapV2Router02', 'ABDKMathQuad', 'RoundDiv']

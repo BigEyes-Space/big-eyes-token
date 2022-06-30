@@ -18,7 +18,7 @@ function getRandomNumberBetween (min, max) {
 
 describe('BigEyes contract', () => {
   beforeEach(async () => {
-    await deployments.fixture(['BigEyes', 'BigEyesNFTs', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'SafeMath', 'RoundDiv', 'WETH', 'Strings', 'StringsLib'])
+    await deployments.fixture(['BigEyes', 'BigEyesNFTs', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'RoundDiv', 'WETH', 'StringsLib'])
     this.bigEyes = await ethers.getContract('BigEyes')
     this.bigEyesNFTs = await ethers.getContract('BigEyesNFTs')
     const aBDKMathQuadLibrary = await ethers.getContract('ABDKMathQuad')

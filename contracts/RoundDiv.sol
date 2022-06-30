@@ -13,7 +13,7 @@ library RoundDiv {
      *
      * - The divisor cannot be zero.
      */
-    function roundDiv(uint256 a, uint256 b) internal pure returns (uint256) {
+    function roundDiv(uint256 a, uint256 b) external pure returns (uint256) {
         // require(b != 0, "Denominator can not be 0!"); // not needed anlonger from solidity version 0.8.x onwards
         return (a + b / 2) / b;
     }

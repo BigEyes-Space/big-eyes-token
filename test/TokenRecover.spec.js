@@ -8,7 +8,7 @@ import { ethers } from 'hardhat'
 
 describe('TokenRecover contract', () => {
   beforeEach(async () => {
-    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'SafeMath', 'RoundDiv', 'WETH', 'Strings', 'StringsLib'])
+    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'RoundDiv', 'WETH', 'StringsLib'])
     this.bigEyes = await ethers.getContract('BigEyes')
     const aBDKMathQuadLibrary = await ethers.getContract('ABDKMathQuad')
     const router = await ethers.getContract('UniswapV2Router02')

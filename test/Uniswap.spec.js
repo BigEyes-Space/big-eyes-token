@@ -84,7 +84,7 @@ const deductionsCheck = (endBalance, initialBalance, idealAmountOfBigEyesToRecei
 
 describe('Uniswap router contract', () => {
   beforeEach(async () => {
-    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'SafeMath', 'RoundDiv', 'WETH', 'Strings', 'StringsLib'])
+    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'RoundDiv', 'WETH', 'StringsLib'])
     this.factory = await ethers.getContract('UniswapV2Factory')
     this.bigEyes = await ethers.getContract('BigEyes')
     this.wETH = await ethers.getContract('WETH')
