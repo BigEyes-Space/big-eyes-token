@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 import "./TokenRecover.sol";
 import "./BigEyesNFT.sol";
 import "./PaymentSplitter.sol";
@@ -93,7 +93,7 @@ contract BigEyesNFTs is TokenRecover, NativeTokenReceiver, PaymentSplitter {
             ))
             .replace(" ", "%20", 0)
             .replace(".", "%2e", 0);
-        console.log("\nMinting NFT with URL: %s.", url);
+        // console.log("\nMinting NFT with URL: %s.", url);
         bigEyesNFT.safeMint(to, url);
         emit NFTMinted(from, to, url);
     }

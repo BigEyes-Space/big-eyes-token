@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "hardhat/console.sol";
 import "./BurnableReflectionERC20.sol";
 import "./TokenRecover.sol";
 import "./NativeTokenReceiver.sol";

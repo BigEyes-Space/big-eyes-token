@@ -3,9 +3,10 @@
 pragma solidity 0.8.9;
 
 import "./abdk-libraries-solidity/ABDKMathQuad.sol";
-import { IUniswapV2Pair } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import { IUniswapV2Factory } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+// import { IUniswapV2Pair } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+// import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+// import { IUniswapV2Factory } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import { IUniswapV2Pair, IUniswapV2Router02, IUniswapV2Factory } from "./interfaces/IUniswap.sol";
 import "./OwnershipByAccessControl.sol";
 
 contract CalculateAmountOutMin is OwnershipByAccessControl {
