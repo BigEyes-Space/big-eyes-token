@@ -4,7 +4,7 @@ const getDeploymentArguments = async (artifacts) => {
   const name = 'Big Eyes'
   const symbol = 'BGE'
   const initialAccount = artifacts.deployer.address
-  const initialBalance = BigNumber.from('200000000000000000000000000000')
+  const initialBalance = BigNumber.from('888000000000000000000')
   // 90%
   const slippageFactorNumerator = await artifacts.aBDKMathQuadLibrary.fromInt(90)
   const slippageFactorDenominator = await artifacts.aBDKMathQuadLibrary.fromInt(100)

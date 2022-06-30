@@ -70,8 +70,12 @@ const swapExactTokensForTokens = async (self, liquiditySupply) => {
 const deductionsCheck = (endBalance, initialBalance, idealAmountOfBigEyesToReceive) => {
   expect(endBalance).to.be.gt(initialBalance)
 
-  const expectedDeduction = idealAmountOfBigEyesToReceive.toNumber() * (1 - (1 - this.uniSwapFee) * (1 - this.slippage) * (1 - this.accumulatedOnBuyFees) * (1 - this.accumulatedOnSellFees))
+  const expectedDeduction = idealAmountOfBigEyesToReceive.toNumber() * (1 - (1 - this.uniSwapFee) * (1 - this.slippageFactor) * (1 - this.accumulatedOnBuyFees) * (1 - this.accumulatedOnSellFees))
   const deduction = idealAmountOfBigEyesToReceive.sub(endBalance)
+
+  // const slippageFactor = 1 - ( 1 - deduction.toNumber()/idealAmountOfBigEyesToReceive.toNumber())/(1 - this.uniSwapFee)/(1 - this.accumulatedOnBuyFees)/(1 - this.accumulatedOnSellFees)
+  // console.log(slippageFactor)
+
   const error = expectedDeduction - deduction.toNumber()
   const errorRatio = error / deduction.toNumber()
   // console.log(`Error ${errorRatio*100} %`)
@@ -105,8 +109,8 @@ describe('Uniswap router contract', () => {
         this.first,
         liquiditySupply
       )
-      // considering 0.3% fee and additional 0.04982516215667% slippage
-      this.slippage = 0.0004982516215667
+      // considering 0.3% fee and additional 0.04914965285134354% slippage
+      this.slippageFactor = 0.0004914965285134354
       this.uniSwapFee = 0.003
       this.accumulatedOnBuyFees = feesReduction(this.onBuyFees)
       this.accumulatedOnSellFees = feesReduction(this.onSellFees)
