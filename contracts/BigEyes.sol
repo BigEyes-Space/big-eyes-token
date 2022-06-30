@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "./BurnableReflectionERC20.sol";
 import "./TokenRecover.sol";
 import "./NativeTokenReceiver.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+// import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract BigEyes is BurnableReflectionERC20, TokenRecover, NativeTokenReceiver {
 // contract BigEyes is ERC20Burnable, TokenRecover, NativeTokenReceiver {
