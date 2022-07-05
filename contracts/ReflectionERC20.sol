@@ -570,9 +570,9 @@ contract ReflectionERC20 is
     }
 
     function changeFeesForNormalSell(
-        uint8 _liquidityFeeOnSell,
-        uint8 _marketingFeeOnSell,
-        uint8 _distributionFeeOnSell
+        uint256 _liquidityFeeOnSell,
+        uint256 _marketingFeeOnSell,
+        uint256 _distributionFeeOnSell
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_liquidityFeeOnSell < _feeDivisor, "Liquidity fee above 100%");
         require(_marketingFeeOnSell < _feeDivisor, "Marketing fee above 100%");

@@ -20,8 +20,10 @@ const getDeploymentArguments = async (artifacts) => {
     initialBalance,
     slippageFactor,
     routerAddress,
-    onBuyFees: [0.1 * feeMultiplier, 0.2 * feeMultiplier, 0.3 * feeMultiplier], // liquidity, marketing, distribution
-    onSellFees: [0.4 * feeMultiplier, 0.5 * feeMultiplier, 0.6 * feeMultiplier], // liquidity, marketing, distribution
+    // onBuyFees: [0.1 * feeMultiplier, 0.2 * feeMultiplier, 0.3 * feeMultiplier], // liquidity, marketing, distribution
+    // onSellFees: [0.4 * feeMultiplier, 0.5 * feeMultiplier, 0.6 * feeMultiplier], // liquidity, marketing, distribution
+    onBuyFees: [1, 2, 3], // liquidity, marketing, distribution
+    onSellFees: [4, 5, 6], // liquidity, marketing, distribution
     feeMultiplier
   }
 }
