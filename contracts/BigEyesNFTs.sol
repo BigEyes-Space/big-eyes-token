@@ -15,35 +15,38 @@ import "./StringsLib/StringsLib.sol";
 contract BigEyesNFTs is TokenRecover, NativeTokenReceiver, PaymentSplitter {
     event NFTMinted(address from, address to, string url);
     event NFTBurned(address from, uint256 tokenId);
-    event NFTPriceSet(uint newPrice);
+    event NFTPriceSet(uint256 newPrice);
     event URLPreambleSet(string newPreamble);
 
     using Bytes32Utils for bytes32;
     using StringsLib for string;
-    using Strings for uint;
+    using Strings for uint256;
 
     StringsLib.Data private data;
-    
-    BigEyesNFT public bigEyesNFT;
-    uint public nftPrice;
-    string private _urlPreamble;
-    mapping(uint => uint) public editionCap;
 
-    constructor (
+    BigEyesNFT public bigEyesNFT;
+    uint256 public nftPrice;
+    string private _urlPreamble;
+    mapping(uint256 => uint256) public editionCap;
+
+    constructor(
         address[] memory payees_,
         uint256[] memory shares_,
-        uint nftPrice_,
+        uint256 nftPrice_,
         string memory urlPreamble_,
         IERC20 bigEyesTokenAddress
     ) payable PaymentSplitter(bigEyesTokenAddress, payees_, shares_) {
-    // ) payable ERC20(name, symbol) PaymentSplitter(this, payees_, shares_) {
+        // ) payable ERC20(name, symbol) PaymentSplitter(this, payees_, shares_) {
         _urlPreamble = urlPreamble_;
         nftPrice = nftPrice_;
         bigEyesNFT = new BigEyesNFT("BigEyesNFT", "BEN");
     }
 
-    function burnNFT(uint256 tokenId) external{
-        require(_msgSender() == bigEyesNFT.ownerOf(tokenId), "You are not the owner!");
+    function burnNFT(uint256 tokenId) external {
+        require(
+            _msgSender() == bigEyesNFT.ownerOf(tokenId),
+            "You are not the owner!"
+        );
         _burnNFT(tokenId);
     }
 
@@ -51,59 +54,105 @@ contract BigEyesNFTs is TokenRecover, NativeTokenReceiver, PaymentSplitter {
         address owner = bigEyesNFT.ownerOf(tokenId);
         bigEyesNFT.burn(tokenId);
         emit NFTBurned(owner, tokenId);
-    }    
+    }
 
-    function mintNFT(address to, uint edition, uint randomUint, uint256[] memory parents, string memory name, string memory appearance, string memory story) external {
+    function mintNFT(
+        address to,
+        uint256 edition,
+        uint256 randomUint,
+        uint256[] memory parents,
+        string memory name,
+        string memory appearance,
+        string memory story
+    ) external {
         _mintNFT(to, edition, randomUint, parents, name, appearance, story);
     }
 
-    function mintMyNFT(uint edition, uint randomUint, uint256[] memory parents, string memory name, string memory appearance, string memory story) external {
-        _mintNFT(_msgSender(), edition, randomUint, parents, name, appearance, story);
+    function mintMyNFT(
+        uint256 edition,
+        uint256 randomUint,
+        uint256[] memory parents,
+        string memory name,
+        string memory appearance,
+        string memory story
+    ) external {
+        _mintNFT(
+            _msgSender(),
+            edition,
+            randomUint,
+            parents,
+            name,
+            appearance,
+            story
+        );
     }
 
-    function _mintNFT(address to, uint edition, uint randomUint, uint256[] memory parents, string memory name, string memory appearance, string memory story) internal {
-        if (edition == 0){
+    function _mintNFT(
+        address to,
+        uint256 edition,
+        uint256 randomUint,
+        uint256[] memory parents,
+        string memory name,
+        string memory appearance,
+        string memory story
+    ) internal {
+        if (edition == 0) {
             require(parents.length == 0, "Can not have parents!");
         } else {
             require(parents.length == 2, "Must have two parents!");
         }
-        require(editionCap[edition] < 10000*2**edition, "This edition was sold out!");
+        require(
+            editionCap[edition] < 10000 * 2**edition,
+            "This edition was sold out!"
+        );
 
         editionCap[edition] = editionCap[edition] + 1;
         address from = _msgSender();
         super.deposit(from, nftPrice);
         // https://ethereum.stackexchange.com/a/56337
-        bytes32 theHash = keccak256(abi.encodePacked(
-            // solhint-disable-next-line not-rely-on-time
-            block.timestamp,
-            msg.sender,
-            randomUint
-        ));
+        bytes32 theHash = keccak256(
+            abi.encodePacked(
+                // solhint-disable-next-line not-rely-on-time
+                block.timestamp,
+                msg.sender,
+                randomUint
+            )
+        );
 
-        for (uint i = 0; i < parents.length; i++){
+        for (uint256 i = 0; i < parents.length; i++) {
             _burnNFT(parents[i]);
-        }        
+        }
 
-        string memory url = string(abi.encodePacked(
+        string memory url = string(
+            abi.encodePacked(
                 _urlPreamble,
-                "?hash=", theHash.toString(),
-                "&name=", name,
-                "&appearance=", appearance,
-                "&story=", story
-            ))
-            .replace(" ", "%20", 0)
-            .replace(".", "%2e", 0);
+                "?hash=",
+                theHash.toString(),
+                "&name=",
+                name,
+                "&appearance=",
+                appearance,
+                "&story=",
+                story
+            )
+        ).replace(" ", "%20", 0).replace(".", "%2e", 0);
         // console.log("\nMinting NFT with URL: %s.", url);
         bigEyesNFT.safeMint(to, url);
         emit NFTMinted(from, to, url);
     }
 
-    function setNFTPrice(uint nftPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setNFTPrice(uint256 nftPrice_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         nftPrice = nftPrice_;
         emit NFTPriceSet(nftPrice_);
     }
 
-    function setUrlPreamble(string memory urlPreamble_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setUrlPreamble(string memory urlPreamble_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _urlPreamble = urlPreamble_;
         emit URLPreambleSet(urlPreamble_);
     }

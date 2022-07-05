@@ -29,16 +29,21 @@ struct RecordArchive {
     mapping(address => Record) records;
     address[] addresses;
 }
+
 contract PaymentSplitter is Context, OwnershipByAccessControl {
     using SafeERC20 for IERC20;
     event PayeeAdded(address account, uint256 shares);
     event PayeeUpdated(address account, int256 shares);
     event PayeeRemoved(address account);
     event PaymentReleased(address to, uint256 amount);
-    event AcceptedTokenDeposit(address depositor, uint amount);
-    event SharesTransferred(address transferrer, address to, uint sharesAmount);
+    event AcceptedTokenDeposit(address depositor, uint256 amount);
+    event SharesTransferred(
+        address transferrer,
+        address to,
+        uint256 sharesAmount
+    );
 
-    IERC20 immutable private acceptedToken;
+    IERC20 private immutable acceptedToken;
     RecordArchive private payeeArchive;
 
     /**
@@ -48,10 +53,16 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      * All addresses in `payees` must be non-zero. Both arrays must have the same non-zero length, and there must be no
      * duplicates in `payees`.
      */
-    constructor (IERC20 _acceptedToken, address[] memory _payees, uint256[] memory _shares)
-        OwnershipByAccessControl() {
+    constructor(
+        IERC20 _acceptedToken,
+        address[] memory _payees,
+        uint256[] memory _shares
+    ) OwnershipByAccessControl() {
         // solhint-disable-next-line max-line-length, reason-string
-        require(_payees.length == _shares.length, "PaymentSplitter: payees and shares length mismatch");
+        require(
+            _payees.length == _shares.length,
+            "PaymentSplitter: payees and shares length mismatch"
+        );
         require(_payees.length > 0, "PaymentSplitter: no payees");
 
         for (uint256 i = 0; i < _payees.length; i++) {
@@ -69,7 +80,7 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      * https://solidity.readthedocs.io/en/latest/contracts.html#fallback-function[fallback
      * functions].
      */
-    function deposit(address depositor, uint amount) internal {
+    function deposit(address depositor, uint256 amount) internal {
         acceptedToken.safeTransferFrom(depositor, address(this), amount);
         emit AcceptedTokenDeposit(depositor, amount);
     }
@@ -124,8 +135,11 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
         // solhint-disable-next-line reason-string
         require(isPayee(account), "PaymentSplitter: account is not a payee");
 
-        uint256 totalReceived = acceptedToken.balanceOf(address(this))  + totalReleased();
-        uint256 payment = totalReceived * shares(account) / totalShares() - released(account);
+        uint256 totalReceived = acceptedToken.balanceOf(address(this)) +
+            totalReleased();
+        uint256 payment = (totalReceived * shares(account)) /
+            totalShares() -
+            released(account);
 
         // solhint-disable-next-line reason-string
         require(payment != 0, "PaymentSplitter: account is not due payment");
@@ -137,7 +151,7 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
         emit PaymentReleased(account, payment);
     }
 
-    function isPayee(address account) public view returns (bool){
+    function isPayee(address account) public view returns (bool) {
         return (shares(account) > 0);
     }
 
@@ -149,14 +163,20 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
     function transferShares(address to, uint256 sharesAmount) public {
         address transferrer = _msgSender();
         // solhint-disable-next-line reason-string
-        require(isPayee(transferrer), "PaymentSplitter: transferrer not a payee");
+        require(
+            isPayee(transferrer),
+            "PaymentSplitter: transferrer not a payee"
+        );
         // solhint-disable-next-line reason-string
-        require(shares(transferrer) >= sharesAmount, "PaymentSplitter: not enough shares balance");
+        require(
+            shares(transferrer) >= sharesAmount,
+            "PaymentSplitter: not enough shares balance"
+        );
         // Deduct from transferrer shares balance
-        _updatePayee(transferrer, shares(transferrer)-sharesAmount);
-        if(isPayee(to)){
-            _updatePayee(to, shares(to)+sharesAmount);
-        }else{
+        _updatePayee(transferrer, shares(transferrer) - sharesAmount);
+        if (isPayee(to)) {
+            _updatePayee(to, shares(to) + sharesAmount);
+        } else {
             _addPayee(to, sharesAmount);
         }
         emit SharesTransferred(transferrer, to, sharesAmount);
@@ -174,10 +194,15 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
             return;
         }
         // solhint-disable-next-line reason-string
-        require(shares(account) != _shares, "PaymentSplitter: account already has that many shares");
+        require(
+            shares(account) != _shares,
+            "PaymentSplitter: account already has that many shares"
+        );
         int256 delta = int256(_shares) - int256(shares(account));
         payeeArchive.records[account].shares = _shares;
-        payeeArchive.records[address(this)].shares = uint256(int256(payeeArchive.records[address(this)].shares) + delta);
+        payeeArchive.records[address(this)].shares = uint256(
+            int256(payeeArchive.records[address(this)].shares) + delta
+        );
         emit PayeeUpdated(account, delta);
     }
 
@@ -188,7 +213,10 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      */
     function _addPayee(address account, uint256 _shares) private {
         // solhint-disable-next-line reason-string
-        require(account != address(0), "PaymentSplitter: account is the zero address");
+        require(
+            account != address(0),
+            "PaymentSplitter: account is the zero address"
+        );
         require(_shares > 0, "PaymentSplitter: shares are 0");
         // solhint-disable-next-line reason-string
         require(!isPayee(account), "PaymentSplitter: account is already payee");
@@ -205,27 +233,37 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      */
     function _removePayee(address account) private {
         // solhint-disable-next-line reason-string
-        require(payeeArchive.addresses.length > 0, "PaymentSplitter: empty payee list");
-        
+        require(
+            payeeArchive.addresses.length > 0,
+            "PaymentSplitter: empty payee list"
+        );
+
         Record memory recordToBeRemoved = record(account);
         delete payeeArchive.records[account];
         _remove(payeeArchive.addresses, account);
         payeeArchive.records[address(this)].shares -= recordToBeRemoved.shares;
         emit PayeeRemoved(account);
     }
-    function getIndex(address[] memory list, address _address) private pure returns(uint256){
+
+    function getIndex(address[] memory list, address _address)
+        private
+        pure
+        returns (uint256)
+    {
         for (uint256 i = 0; i < list.length; i++) {
-            if(list[i] == _address){
+            if (list[i] == _address) {
                 return i;
             }
         }
         // solhint-disable-next-line reason-string
         revert("PaymentSplitter: account not found");
     }
+
     function _remove(address[] storage list, address account) private {
         _remove(list, getIndex(list, account));
     }
-    function _remove(address[] storage list, uint index) private {
+
+    function _remove(address[] storage list, uint256 index) private {
         // Move the last element into the place to delete
         list[index] = list[list.length - 1];
         // Remove the last element
@@ -237,7 +275,10 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      * @param account The address of the payee to add.
      * @param _shares The number of shares owned by the payee.
      */
-    function updatePayee(address account, uint256 _shares) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updatePayee(address account, uint256 _shares)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _updatePayee(account, _shares);
     }
 
@@ -246,7 +287,10 @@ contract PaymentSplitter is Context, OwnershipByAccessControl {
      * @param account The address of the payee to add.
      * @param _shares The number of shares owned by the payee.
      */
-    function addPayee(address account, uint256 _shares) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addPayee(address account, uint256 _shares)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _addPayee(account, _shares);
     }
 

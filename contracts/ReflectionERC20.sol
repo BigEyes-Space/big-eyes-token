@@ -19,7 +19,7 @@ struct ReflectionAccountability {
     uint256 tFeeTotal;
 }
 
-struct ReflectionParameters{
+struct ReflectionParameters {
     uint256 factor;
     uint256 maxTxFactor;
     uint256 liquidityFactor;
@@ -27,20 +27,24 @@ struct ReflectionParameters{
 }
 
 struct Fees {
-    uint8 liquidity;
-    uint8 marketing;
-    uint8 distribution;
+    uint256 liquidity;
+    uint256 marketing;
+    uint256 distribution;
 }
 
-contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMin, Swapping {
+contract ReflectionERC20 is
+    IERC20,
+    ERC20Metadata,
+    Context,
+    CalculateAmountOutMin,
+    Swapping
+{
     using SafeMath for uint256;
     using RoundDiv for uint256;
 
     mapping(address => uint256) private _reflectionOwned;
     mapping(address => uint256) private _tokenOwned;
 
-
-    
     mapping(address => mapping(address => uint256)) private _allowances;
 
     mapping(address => bool) private _isExcludedFromFee;
@@ -50,12 +54,13 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     address[] private _excluded;
 
     uint256 private constant _MAX = ~uint256(0);
-    uint256 private constant _FEE_DIVISOR = 1000;
+    uint256 private _feeMultiplier;
+    uint256 private _feeDivisor;
 
     uint256 public launchedAt;
 
     address public marketingWallet;
-    address private constant _DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address private _autoLiquidityReceiver;
 
     Fees public onBuyFees;
     Fees public onSellFees;
@@ -67,23 +72,37 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     event IncludeInReflection(address indexed account);
     event ExcludeFromReflection(address indexed account);
     event UpdateMarketingWallet(address indexed marketingWallet);
-    event ChangeFeesForNormalSell(uint8 indexed liquidityFeeOnSell, uint8 indexed marketingFeeOnSell, uint8 indexed bigEyesDistributionFeeOnSell);
-    event ChangeFeesForNormalBuy(uint8 indexed liquidityFeeOnBuy, uint8 indexed marketingFeeOnBuy, uint8 indexed bigEyesDistributionFeeOnBuy);
+    event ChangeFeesForNormalSell(
+        uint256 indexed liquidityFeeOnSell,
+        uint256 indexed marketingFeeOnSell,
+        uint256 indexed distributionFeeOnSell
+    );
+    event ChangeFeesForNormalBuy(
+        uint256 indexed liquidityFeeOnBuy,
+        uint256 indexed marketingFeeOnBuy,
+        uint256 indexed distributionFeeOnBuy
+    );
     event UpdateUniSwapRouter(address indexed dexRouter);
 
-    event SwapAndLiquify(uint256 indexed ethReceived, uint256 indexed tokensIntoLiqudity);
+    event SwapAndLiquify(
+        uint256 indexed ethReceived,
+        uint256 indexed tokensIntoLiqudity
+    );
 
     constructor(
         string memory name_,
         string memory symbol_,
-        bytes16 slippageFactor_, 
-        address router_, 
+        bytes16 slippageFactor_,
+        address router_,
         address marketingWallet_,
-        uint8[] memory onBuyFees_,
-        uint8[] memory onSellFees_
-        ) CalculateAmountOutMin(slippageFactor_, router_)
-        ERC20Metadata(name_, symbol_, 9) {
-
+        uint256[] memory onBuyFees_,
+        uint256[] memory onSellFees_,
+        bool lockLiquidityForever_,
+        uint256 feeMultiplier_
+    )
+        CalculateAmountOutMin(slippageFactor_, router_)
+        ERC20Metadata(name_, symbol_, 9)
+    {
         onBuyFees.liquidity = onBuyFees_[0];
         onBuyFees.marketing = onBuyFees_[1];
         onBuyFees.distribution = onBuyFees_[2];
@@ -91,33 +110,49 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         onSellFees.liquidity = onSellFees_[0];
         onSellFees.marketing = onSellFees_[1];
         onSellFees.distribution = onSellFees_[2];
-        
+
         reflection.maxTxFactor = 200;
         reflection.liquidityFactor = 2000;
         reflection.factor = 2**128;
-        reflection.maxTotalSupply = _MAX / reflection.factor;    
+        reflection.maxTotalSupply = _MAX / reflection.factor;
 
-
-        // TOCHECK
         marketingWallet = marketingWallet_;
-        
+
         _isExcludedFromFee[msg.sender] = true;
         _isExcludedFromFee[address(this)] = true;
         _isExcludedFromFee[address(0)] = true;
         _isExcludedFromFee[marketingWallet] = true;
+
+        if (lockLiquidityForever_) {
+            _autoLiquidityReceiver = address(0);
+        } else {
+            _autoLiquidityReceiver = address(this);
+        }
+
+        _feeMultiplier = feeMultiplier_;
+        _feeDivisor = 100*_feeMultiplier;
     }
 
-    function excludeFromReflection(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function excludeFromReflection(address account)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _excludeFromReflection(account);
         emit ExcludeFromReflection(account);
     }
 
-    function includeInReflection(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function includeInReflection(address account)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _includeInReflection(account);
         emit IncludeInReflection(account);
     }
 
-    function setIsExcludedFromFee(address account, bool flag) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setIsExcludedFromFee(address account, bool flag)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setIsExcludedFromFee(account, flag);
         emit SetIsExcludedFromFee(account, flag);
     }
@@ -132,7 +167,11 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         return tokenFromReflection(_reflectionOwned[account]);
     }
 
-    function isExcludedFromReflection(address account) external view returns (bool) {
+    function isExcludedFromReflection(address account)
+        external
+        view
+        returns (bool)
+    {
         return _isExcluded[account];
     }
 
@@ -140,13 +179,24 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         return reflectionAccountability.tFeeTotal;
     }
 
-    function reflectionFromToken(uint256 tAmount) public view returns (uint256) {
+    function reflectionFromToken(uint256 tAmount)
+        public
+        view
+        returns (uint256)
+    {
         uint256 reflectionAmount = tAmount * _getRate();
         return reflectionAmount;
     }
 
-    function tokenFromReflection(uint256 reflectionAmount) public view returns (uint256) {
-        require(reflectionAmount <= reflectionAccountability.rTotal, "Amount must be < reflections");
+    function tokenFromReflection(uint256 reflectionAmount)
+        public
+        view
+        returns (uint256)
+    {
+        require(
+            reflectionAmount <= reflectionAccountability.rTotal,
+            "Amount must be < reflections"
+        );
         return reflectionAmount.roundDiv(_getRate());
     }
 
@@ -154,49 +204,88 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         return reflectionAccountability.tFeeTotal;
     }
 
-    function allowance(address owner, address spender) external view override returns (uint256) {
+    function allowance(address owner, address spender)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _allowances[owner][spender];
     }
 
-    function transfer(address recipient, uint256 amount) external override returns (bool) {
+    function transfer(address recipient, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
-    function approve(address spender, uint256 amount) external override returns (bool) {
+    function approve(address spender, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
         _approve(_msgSender(), spender, amount);
         return true;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(
             sender,
             _msgSender(),
-            _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+            _allowances[sender][_msgSender()].sub(
+                amount,
+                "ERC20: transfer amount exceeds allowance"
+            )
+        );
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) external virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) external virtual returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue)
+        external
+        virtual
+        returns (bool)
+    {
         _approve(
             _msgSender(),
             spender,
-            _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+            _allowances[_msgSender()][spender] + addedValue
+        );
         return true;
     }
 
-
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+        external
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
 
     // Requirements
-    // 
+    //
     //
 
-    function _approve(address owner, address spender, uint256 amount) private {
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) private {
         require(owner != address(0), "ERC20: approve from 0x address");
         require(spender != address(0), "ERC20: approve to 0x address");
 
@@ -204,7 +293,11 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         emit Approval(owner, spender, amount);
     }
 
-    function _transfer(address sender, address recipient, uint256 amount) private {
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) private {
         // require(sender != address(0), "ERC20: transfer from 0x address");
         // require(recipient != address(0), "ERC20: transfer to 0x address");
         require(amount > 0, "ERC20: amount must be > 0");
@@ -217,8 +310,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
             return;
         }
 
-        if (_shouldSwapBack())
-            _swapAndAddToLiquidity();
+        if (_shouldSwapBack()) _swapAndAddToLiquidity();
 
         address dexPairAddress = address(dexPair);
         if (_isExcludedFromFee[sender] || _isExcludedFromFee[recipient]) {
@@ -243,60 +335,93 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _afterTokenTransfer(sender, recipient, amount);
     }
 
-    function _basicTransfer(address sender, address recipient, uint256 amount) private {
+    function _basicTransfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) private {
         uint256 currentRate = _getRate();
         updateBalance(sender, amount, currentRate, false);
-        updateBalance(recipient, amount, currentRate, true);        
+        updateBalance(recipient, amount, currentRate, true);
         emit Transfer(sender, recipient, amount);
     }
 
-    function _normalBuy(address sender, address recipient, uint256 amount) private {
+    function _normalBuy(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(_FEE_DIVISOR);
-        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(_FEE_DIVISOR);
-        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(_FEE_DIVISOR);
-        uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
+        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(
+            _feeDivisor
+        );
+        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(
+            _feeDivisor
+        );
+        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(
+            _feeDivisor
+        );
+        uint256 transferAmount = amount -
+            liquidityFee -
+            distributionFee -
+            marketingFee;
         updateBalance(sender, amount, currentRate, false);
         updateBalance(recipient, transferAmount, currentRate, true);
         updateBalance(address(this), liquidityFee, currentRate, true);
-       
+
         emit Transfer(sender, recipient, transferAmount);
         emit Transfer(sender, address(this), liquidityFee);
 
         updateBalance(marketingWallet, marketingFee, currentRate, true);
         emit Transfer(sender, marketingWallet, marketingFee);
-        _reflectFee(distributionFee*currentRate, distributionFee);
+        _reflectFee(distributionFee * currentRate, distributionFee);
     }
 
-    function _normalSell(address sender, address recipient, uint256 amount) private {
+    function _normalSell(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(_FEE_DIVISOR);
-        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(_FEE_DIVISOR);
-        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(_FEE_DIVISOR);
-        uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
+        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(
+            _feeDivisor
+        );
+        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(
+            _feeDivisor
+        );
+        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(
+            _feeDivisor
+        );
+        uint256 transferAmount = amount -
+            liquidityFee -
+            distributionFee -
+            marketingFee;
 
         updateBalance(sender, amount, currentRate, false);
         updateBalance(recipient, transferAmount, currentRate, true);
         updateBalance(address(this), liquidityFee, currentRate, true);
-       
+
         emit Transfer(sender, recipient, transferAmount);
         emit Transfer(sender, address(this), liquidityFee);
 
         updateBalance(marketingWallet, marketingFee, currentRate, true);
         emit Transfer(sender, marketingWallet, marketingFee);
-        _reflectFee(distributionFee*currentRate, distributionFee);
+        _reflectFee(distributionFee * currentRate, distributionFee);
     }
 
     function _shouldSwapBack() private view returns (bool) {
-        return msg.sender != address(dexPair)
-            && launchedAt > 0
-            && !isSwapping()
-            && isSwapAndLiquifyEnabled()
-            && balanceOf(address(this)) >= reflectionAccountability.numTokensSellToAddToLiquidity;
+        return
+            msg.sender != address(dexPair) &&
+            launchedAt > 0 &&
+            !isSwapping() &&
+            isSwapAndLiquifyEnabled() &&
+            balanceOf(address(this)) >=
+            reflectionAccountability.numTokensSellToAddToLiquidity;
     }
 
     function _swapAndAddToLiquidity() private lockTheSwap {
-        uint256 tokenAmountForLiquidity = reflectionAccountability.numTokensSellToAddToLiquidity;
+        uint256 tokenAmountForLiquidity = reflectionAccountability
+            .numTokensSellToAddToLiquidity;
         uint256 amountToSwap = tokenAmountForLiquidity.roundDiv(2);
         uint256 amountAnotherHalf = tokenAmountForLiquidity - amountToSwap;
 
@@ -317,12 +442,12 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
         uint256 difference = address(this).balance - balanceBefore;
 
-        dexRouter.addLiquidityETH{value: difference} (
+        dexRouter.addLiquidityETH{value: difference}(
             address(this),
             amountAnotherHalf,
             0,
             0,
-            _DEAD_ADDRESS,
+            _autoLiquidityReceiver,
             // solhint-disable-next-line not-rely-on-time
             block.timestamp + 30
         );
@@ -341,34 +466,59 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     // }
 
     function _reflectFee(uint256 reflectionFee, uint256 tokenFee) private {
-        reflectionAccountability.rTotal = reflectionAccountability.rTotal - reflectionFee;
-        reflectionAccountability.tFeeTotal = reflectionAccountability.tFeeTotal + tokenFee;
+        reflectionAccountability.rTotal =
+            reflectionAccountability.rTotal -
+            reflectionFee;
+        reflectionAccountability.tFeeTotal =
+            reflectionAccountability.tFeeTotal +
+            tokenFee;
     }
-    
+
     function _getCurrentSupply() private view returns (uint256, uint256) {
         uint256 reflectionSupply = reflectionAccountability.rTotal;
         uint256 tokenSupply = reflectionAccountability.tTotal;
         for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_reflectionOwned[_excluded[i]] > reflectionSupply || _tokenOwned[_excluded[i]] > tokenSupply)
-                return (reflectionAccountability.rTotal, reflectionAccountability.tTotal);
+            if (
+                _reflectionOwned[_excluded[i]] > reflectionSupply ||
+                _tokenOwned[_excluded[i]] > tokenSupply
+            )
+                return (
+                    reflectionAccountability.rTotal,
+                    reflectionAccountability.tTotal
+                );
 
-            reflectionSupply = reflectionSupply - _reflectionOwned[_excluded[i]];
+            reflectionSupply =
+                reflectionSupply -
+                _reflectionOwned[_excluded[i]];
             tokenSupply = tokenSupply - _tokenOwned[_excluded[i]];
         }
 
-        if (reflectionSupply < reflectionAccountability.rTotal.roundDiv(reflectionAccountability.tTotal)) {
-            return (reflectionAccountability.rTotal, reflectionAccountability.tTotal);
+        if (
+            reflectionSupply <
+            reflectionAccountability.rTotal.roundDiv(
+                reflectionAccountability.tTotal
+            )
+        ) {
+            return (
+                reflectionAccountability.rTotal,
+                reflectionAccountability.tTotal
+            );
         }
 
         return (reflectionSupply, tokenSupply);
     }
 
     function _excludeFromReflection(address account) private {
-        require(account !=  address(dexRouter), "UniSwap router can not be excluded!");
+        require(
+            account != address(dexRouter),
+            "UniSwap router can not be excluded!"
+        );
         require(!_isExcluded[account], "Account is already excluded");
 
         if (_reflectionOwned[account] > 0) {
-            _tokenOwned[account] = tokenFromReflection(_reflectionOwned[account]);
+            _tokenOwned[account] = tokenFromReflection(
+                _reflectionOwned[account]
+            );
         }
         _isExcluded[account] = true;
         _excluded.push(account);
@@ -378,9 +528,14 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         require(_isExcluded[account], "Account is already included");
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
-                uint256 prev_reflection=_reflectionOwned[account];
-                _reflectionOwned[account] = reflectionFromToken(_tokenOwned[account]);
-                reflectionAccountability.rTotal = reflectionAccountability.rTotal + _reflectionOwned[account] - prev_reflection;
+                uint256 prev_reflection = _reflectionOwned[account];
+                _reflectionOwned[account] = reflectionFromToken(
+                    _tokenOwned[account]
+                );
+                reflectionAccountability.rTotal =
+                    reflectionAccountability.rTotal +
+                    _reflectionOwned[account] -
+                    prev_reflection;
                 _isExcluded[account] = false;
                 _excluded[i] = _excluded[_excluded.length - 1];
                 _excluded.pop();
@@ -393,27 +548,52 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _isExcludedFromFee[account] = flag;
     }
 
-    function changeFeesForNormalBuy(uint8 _liquidityFeeOnBuy, uint8 _marketingFeeOnBuy, uint8 _bigEyesDistributionFeeOnBuy) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_liquidityFeeOnBuy < 100, "Fee should be less than 100!");
-        require(_marketingFeeOnBuy < 100, "Fee should be less than 100!");
-        require(_bigEyesDistributionFeeOnBuy < 100, "Fee should be less than 100!");
+    function changeFeesForNormalBuy(
+        uint256 _liquidityFeeOnBuy,
+        uint256 _marketingFeeOnBuy,
+        uint256 _distributionFeeOnBuy
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_liquidityFeeOnBuy < _feeDivisor, "Liquidity fee above 100%");
+        require(_marketingFeeOnBuy < _feeDivisor, "Marketing fee above 100%");
+        require(
+            _distributionFeeOnBuy < _feeDivisor,
+            "Distribution fee above 100%"
+        );
         onBuyFees.liquidity = _liquidityFeeOnBuy;
         onBuyFees.marketing = _marketingFeeOnBuy;
-        onBuyFees.distribution = _bigEyesDistributionFeeOnBuy;
-        emit ChangeFeesForNormalBuy(_liquidityFeeOnBuy, _marketingFeeOnBuy, _bigEyesDistributionFeeOnBuy);
+        onBuyFees.distribution = _distributionFeeOnBuy;
+        emit ChangeFeesForNormalBuy(
+            _liquidityFeeOnBuy,
+            _marketingFeeOnBuy,
+            _distributionFeeOnBuy
+        );
     }
 
-    function changeFeesForNormalSell(uint8 _liquidityFeeOnSell, uint8 _marketingFeeOnSell, uint8 _bigEyesDistributionFeeOnSell) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_liquidityFeeOnSell < 100, "Fee should be less than 100!");
-        require(_marketingFeeOnSell < 100, "Fee should be less than 100!");
-        require(_bigEyesDistributionFeeOnSell < 100, "Fee should be less than 100!");
+    function changeFeesForNormalSell(
+        uint8 _liquidityFeeOnSell,
+        uint8 _marketingFeeOnSell,
+        uint8 _distributionFeeOnSell
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_liquidityFeeOnSell < _feeDivisor, "Liquidity fee above 100%");
+        require(_marketingFeeOnSell < _feeDivisor, "Marketing fee above 100%");
+        require(
+            _distributionFeeOnSell < _feeDivisor,
+            "Distribution fee above 100%"
+        );
         onSellFees.liquidity = _liquidityFeeOnSell;
         onSellFees.marketing = _marketingFeeOnSell;
-        onSellFees.distribution = _bigEyesDistributionFeeOnSell;
-        emit ChangeFeesForNormalSell(_liquidityFeeOnSell, _marketingFeeOnSell, _bigEyesDistributionFeeOnSell);
+        onSellFees.distribution = _distributionFeeOnSell;
+        emit ChangeFeesForNormalSell(
+            _liquidityFeeOnSell,
+            _marketingFeeOnSell,
+            _distributionFeeOnSell
+        );
     }
 
-    function updateMarketingWallet(address _marketingWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateMarketingWallet(address _marketingWallet)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(_marketingWallet != address(0), "Zero address not allowed!");
         _isExcludedFromFee[marketingWallet] = false;
         marketingWallet = _marketingWallet;
@@ -422,9 +602,15 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         emit UpdateMarketingWallet(_marketingWallet);
     }
 
-    function updateUniSwapRouter(address dexRouter_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateUniSwapRouter(address dexRouter_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(dexRouter_ != address(0), "UniSwap Router Invalid!");
-        require(address(dexRouter) != dexRouter_, "UniSwap Router already exists!");
+        require(
+            address(dexRouter) != dexRouter_,
+            "UniSwap Router already exists!"
+        );
         _allowances[address(this)][dexRouter_] = 0; // Set Allowance to 0
         _setDex(dexRouter_);
         _allowances[address(this)][dexRouter_] = _MAX;
@@ -441,7 +627,11 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
      * - `account` cannot be the zero address.
      */
     function _mint(address account, uint256 amount) internal virtual {
-        require(amount + reflectionAccountability.tTotal <= reflection.maxTotalSupply, "ERC20: Exceeds max limit");
+        require(
+            amount + reflectionAccountability.tTotal <=
+                reflection.maxTotalSupply,
+            "ERC20: Exceeds max limit"
+        );
         require(account != address(0), "ERC20: mint to the zero address");
         require(amount > 0, "ERC20: amount is zero");
 
@@ -449,13 +639,22 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
         uint256 rMintAmount = amount * reflection.factor;
 
-        reflectionAccountability.tTotal = reflectionAccountability.tTotal + amount;
-        reflectionAccountability.rTotal = reflectionAccountability.rTotal + rMintAmount;
-        reflectionAccountability.maxTxAmount = reflectionAccountability.tTotal.roundDiv(reflection.maxTxFactor);
-        reflectionAccountability.numTokensSellToAddToLiquidity = reflectionAccountability.tTotal.roundDiv(reflection.liquidityFactor);
+        reflectionAccountability.tTotal =
+            reflectionAccountability.tTotal +
+            amount;
+        reflectionAccountability.rTotal =
+            reflectionAccountability.rTotal +
+            rMintAmount;
+        reflectionAccountability.maxTxAmount = reflectionAccountability
+            .tTotal
+            .roundDiv(reflection.maxTxFactor);
+        reflectionAccountability
+            .numTokensSellToAddToLiquidity = reflectionAccountability
+            .tTotal
+            .roundDiv(reflection.liquidityFactor);
 
         _reflectionOwned[account] = _reflectionOwned[account] + rMintAmount;
-        
+
         emit Transfer(address(0), account, amount);
 
         _afterTokenTransfer(address(0), account, amount);
@@ -481,10 +680,19 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
         uint256 rBurnAmount = amount * reflection.factor;
 
-        reflectionAccountability.tTotal = reflectionAccountability.tTotal - amount;
-        reflectionAccountability.rTotal = reflectionAccountability.rTotal - rBurnAmount;
-        reflectionAccountability.maxTxAmount = reflectionAccountability.tTotal.roundDiv(reflection.maxTxFactor);
-        reflectionAccountability.numTokensSellToAddToLiquidity = reflectionAccountability.tTotal.roundDiv(reflection.liquidityFactor);
+        reflectionAccountability.tTotal =
+            reflectionAccountability.tTotal -
+            amount;
+        reflectionAccountability.rTotal =
+            reflectionAccountability.rTotal -
+            rBurnAmount;
+        reflectionAccountability.maxTxAmount = reflectionAccountability
+            .tTotal
+            .roundDiv(reflection.maxTxFactor);
+        reflectionAccountability
+            .numTokensSellToAddToLiquidity = reflectionAccountability
+            .tTotal
+            .roundDiv(reflection.liquidityFactor);
 
         _reflectionOwned[account] = _reflectionOwned[account] - rBurnAmount;
 
@@ -508,7 +716,10 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     ) internal virtual {
         uint256 currentAllowance = _allowances[owner][spender];
         if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "ERC20: insufficient allowance");
+            require(
+                currentAllowance >= amount,
+                "ERC20: insufficient allowance"
+            );
             unchecked {
                 _approve(owner, spender, currentAllowance - amount);
             }
@@ -555,16 +766,26 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         uint256 amount
     ) internal virtual {}
 
-    function updateBalance(address holder, uint256 amount, uint256 currentRate, bool isAdd) internal {
-        if(isAdd){
-            _reflectionOwned[holder] = _reflectionOwned[holder] + amount*currentRate;
+    function updateBalance(
+        address holder,
+        uint256 amount,
+        uint256 currentRate,
+        bool isAdd
+    ) internal {
+        if (isAdd) {
+            _reflectionOwned[holder] =
+                _reflectionOwned[holder] +
+                amount *
+                currentRate;
             if (_isExcluded[holder])
-                _tokenOwned[holder]=_tokenOwned[holder]+amount;
-        }else{
-            _reflectionOwned[holder] = _reflectionOwned[holder] - amount*currentRate;
+                _tokenOwned[holder] = _tokenOwned[holder] + amount;
+        } else {
+            _reflectionOwned[holder] =
+                _reflectionOwned[holder] -
+                amount *
+                currentRate;
             if (_isExcluded[holder])
-                _tokenOwned[holder]=_tokenOwned[holder]-amount;
+                _tokenOwned[holder] = _tokenOwned[holder] - amount;
         }
-        
     }
 }

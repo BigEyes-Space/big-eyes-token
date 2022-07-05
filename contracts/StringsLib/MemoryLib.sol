@@ -23,7 +23,11 @@ library MemoryLib {
         }
     }
 
-    function memcat(uint256 ptr_l, uint256 ptr_r) internal pure returns (uint256) {
+    function memcat(uint256 ptr_l, uint256 ptr_r)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 len_l;
         uint256 len_r;
         uint256 length;

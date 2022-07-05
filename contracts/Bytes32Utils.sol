@@ -2,9 +2,13 @@
 pragma solidity 0.8.9;
 
 library Bytes32Utils {
-    function _toHex16(bytes16 data, bool upperCase) internal pure returns (bytes32 result) {
-        uint multiplier;
-        if (upperCase){
+    function _toHex16(bytes16 data, bool upperCase)
+        internal
+        pure
+        returns (bytes32 result)
+    {
+        uint256 multiplier;
+        if (upperCase) {
             multiplier = 7;
         } else {
             multiplier = 39;
@@ -51,7 +55,11 @@ library Bytes32Utils {
         );
     }
 
-    function _toString(bytes32 data, bool upperCase) internal pure returns (string memory) {
+    function _toString(bytes32 data, bool upperCase)
+        internal
+        pure
+        returns (string memory)
+    {
         return
             string(
                 abi.encodePacked(
@@ -61,7 +69,11 @@ library Bytes32Utils {
             );
     }
 
-    function toString(bytes32 data, bool upperCase) external pure returns (string memory) {
+    function toString(bytes32 data, bool upperCase)
+        external
+        pure
+        returns (string memory)
+    {
         return _toString(data, upperCase);
     }
 

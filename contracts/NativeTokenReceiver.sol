@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./OwnershipByAccessControl.sol";
 
 contract NativeTokenReceiver is OwnershipByAccessControl {
-    event ReceivedWithEmptyCalldata(address from, uint value);
-    event ReceivedByFallback(address from, uint value);
+    event ReceivedWithEmptyCalldata(address from, uint256 value);
+    event ReceivedByFallback(address from, uint256 value);
 
     receive() external payable {
         emit ReceivedWithEmptyCalldata(msg.sender, msg.value);
@@ -20,7 +20,7 @@ contract NativeTokenReceiver is OwnershipByAccessControl {
     // Function to withdraw all Native tokens from this contract.
     function withdraw() external onlyRole(DEFAULT_ADMIN_ROLE) {
         // get the amount of Native tokens stored in this contract
-        uint amount = address(this).balance;
+        uint256 amount = address(this).balance;
 
         // send all Native tokens to owner
         // Owner can receive Native tokens since the address of owner is payable

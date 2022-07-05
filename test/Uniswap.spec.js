@@ -4,13 +4,13 @@ import { getDeploymentArguments } from '../src/getDeploymentArguments'
 // We import Chai to use its asserting functions here.
 import { expect } from './utils/chai-setup'
 import { ethers } from 'hardhat'
-import { BigNumber, constants } from 'ethers'
+import { constants } from 'ethers'
 
-const feesReduction = (theArray) => theArray.reduce((total, num) => total + num / 1000, 0)
+const feesReduction = (self, theArray) => theArray.reduce((total, num) => total + num / 100 / self.feeMultiplier, 0)
 
 const addLiquidity = async (self, supplier, amounts) => {
-  const bigEyesAmount = amounts[0]
-  const wETHAmount = amounts[1]
+  const wETHAmount = amounts[0]
+  const bigEyesAmount = amounts[1]
   await self.bigEyes
     .connect(self.deployer)
     .transfer(supplier.address, bigEyesAmount)
@@ -41,9 +41,15 @@ const addLiquidity = async (self, supplier, amounts) => {
     )
 }
 
-const swapExactTokensForTokens = async (self, liquiditySupply) => {
+const getTradeAmounts = (liquiditySupply) => {
   const factor = 2000
-  const depositValue = liquiditySupply[0].div(factor)
+  const tradeAmounts = liquiditySupply.map(amount => amount.div(factor))
+  return { tradeAmounts }
+}
+
+const swapExactTokensForTokens = async (self, liquiditySupply) => {
+  const { tradeAmounts } = getTradeAmounts(liquiditySupply)
+  const depositValue = tradeAmounts[0]
   await self.wETH
     .connect(self.second)
     .deposit({ value: depositValue })
@@ -53,8 +59,7 @@ const swapExactTokensForTokens = async (self, liquiditySupply) => {
     .approve(self.router.address, depositValue)
 
   const initialBalance = await self.bigEyes.balanceOf(self.second.address)
-  const tradeAmounts = liquiditySupply.map(amount => amount.div(factor))
-  const amountOfEthToSwap = tradeAmounts[0]
+  const amountOfEthToSwap = depositValue
   const idealAmountOfBigEyesToReceive = tradeAmounts[1]
   await self.router.connect(self.second).swapExactTokensForTokens(
     amountOfEthToSwap, // amountIn
@@ -91,34 +96,34 @@ describe('Uniswap router contract', () => {
     const aBDKMathQuadLibrary = await ethers.getContract('ABDKMathQuad')
     this.router = await ethers.getContract('UniswapV2Router02')
     const namedSigners = await getNamedSigners()
-    Object.assign(this, namedSigners, await getDeploymentArguments({ ...namedSigners, router: this.router, aBDKMathQuadLibrary }))
+    const deploymentArgs = await getDeploymentArguments({ ...namedSigners, router: this.router, aBDKMathQuadLibrary })
+    this.liquiditySupply = [ethers.utils.parseEther('1'), deploymentArgs.initialBalance.div(888)]
+    Object.assign(this, namedSigners, deploymentArgs)
   })
   it('Should be able to add liquidity to uniswap contract', async () => {
     await addLiquidity(
       this,
       this.first,
-      [ethers.utils.parseEther('1'), BigNumber.from('1000000000000000000')]
+      this.liquiditySupply
     )
   })
   describe('After liquidity supply', async () => {
-    let liquiditySupply
     beforeEach(async () => {
-      liquiditySupply = [ethers.utils.parseEther('1'), BigNumber.from('1000000000000000000')]
       await addLiquidity(
         this,
         this.first,
-        liquiditySupply
+        this.liquiditySupply
       )
       // considering 0.3% fee and additional 0.04914965285134354% slippage
       this.slippageFactor = 0.0004914965285134354
       this.uniSwapFee = 0.003
-      this.accumulatedOnBuyFees = feesReduction(this.onBuyFees)
-      this.accumulatedOnSellFees = feesReduction(this.onSellFees)
+      this.accumulatedOnBuyFees = feesReduction(this, this.onBuyFees)
+      this.accumulatedOnSellFees = feesReduction(this, this.onSellFees)
     })
     describe('A second user should be able to:', async () => {
       it('swap exact ETH for tokens', async () => {
+        const { tradeAmounts } = getTradeAmounts(this.liquiditySupply)
         const initialBalance = await this.bigEyes.balanceOf(this.second.address)
-        const tradeAmounts = liquiditySupply.map(amount => amount.div(2000))
         const amountOfEthToSwap = tradeAmounts[0]
         const idealAmountOfBigEyesToReceive = tradeAmounts[1]
         await this.router.connect(this.second).swapExactETHForTokens(
@@ -132,7 +137,7 @@ describe('Uniswap router contract', () => {
         deductionsCheck(endBalance, initialBalance, idealAmountOfBigEyesToReceive)
       })
       it('swap exact tokens for tokens', async () => {
-        const { initialBalance, endBalance, idealAmountOfBigEyesToReceive } = await swapExactTokensForTokens(this, liquiditySupply)
+        const { initialBalance, endBalance, idealAmountOfBigEyesToReceive } = await swapExactTokensForTokens(this, this.liquiditySupply)
         deductionsCheck(endBalance, initialBalance, idealAmountOfBigEyesToReceive)
       })
     })

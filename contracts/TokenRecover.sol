@@ -15,7 +15,11 @@ contract TokenRecover is AccessControl {
      * @param tokenAddress The token contract address
      * @param tokenAmount Number of tokens to be sent
      */
-    function recoverERC20(address tokenAddress, uint256 tokenAmount) public virtual onlyRole(DEFAULT_ADMIN_ROLE) {
+    function recoverERC20(address tokenAddress, uint256 tokenAmount)
+        public
+        virtual
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         IERC20(tokenAddress).transfer(_msgSender(), tokenAmount);
     }
 }

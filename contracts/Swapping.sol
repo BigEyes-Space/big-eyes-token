@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Swapping is AccessControl{
+contract Swapping is AccessControl {
     bool private _inSwapAndLiquify;
     bool private _swapAndLiquifyEnabled = true;
 
@@ -16,16 +16,19 @@ contract Swapping is AccessControl{
 
     event SwapAndLiquifyEnabledUpdated(bool enabled);
 
-    function setSwapAndLiquifyEnabled(bool _enabled) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setSwapAndLiquifyEnabled(bool _enabled)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _swapAndLiquifyEnabled = _enabled;
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    function isSwapAndLiquifyEnabled() internal view returns (bool){
+    function isSwapAndLiquifyEnabled() internal view returns (bool) {
         return _swapAndLiquifyEnabled;
     }
 
-    function isSwapping() internal view returns (bool){
+    function isSwapping() internal view returns (bool) {
         return _inSwapAndLiquify;
-    }    
+    }
 }
