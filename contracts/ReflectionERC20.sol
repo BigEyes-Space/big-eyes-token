@@ -50,7 +50,6 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     address[] private _excluded;
 
     uint256 private constant _MAX = ~uint256(0);
-    // uint256 private constant _FEE_DIVISOR = 1000;
     uint256 private _feeMultiplier;
     uint256 private _feeDivisor;
 
@@ -69,8 +68,8 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     event IncludeInReflection(address indexed account);
     event ExcludeFromReflection(address indexed account);
     event UpdateMarketingWallet(address indexed marketingWallet);
-    event ChangeFeesForNormalSell(uint256 indexed liquidityFeeOnSell, uint256 indexed marketingFeeOnSell, uint256 indexed bigEyesDistributionFeeOnSell);
-    event ChangeFeesForNormalBuy(uint256 indexed liquidityFeeOnBuy, uint256 indexed marketingFeeOnBuy, uint256 indexed bigEyesDistributionFeeOnBuy);
+    event ChangeFeesForNormalSell(uint256 indexed liquidityFeeOnSell, uint256 indexed marketingFeeOnSell, uint256 indexed distributionFeeOnSell);
+    event ChangeFeesForNormalBuy(uint256 indexed liquidityFeeOnBuy, uint256 indexed marketingFeeOnBuy, uint256 indexed distributionFeeOnBuy);
     event UpdateUniSwapRouter(address indexed dexRouter);
 
     event SwapAndLiquify(uint256 indexed ethReceived, uint256 indexed tokensIntoLiqudity);
@@ -406,24 +405,24 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _isExcludedFromFee[account] = flag;
     }
 
-    function changeFeesForNormalBuy(uint256 _liquidityFeeOnBuy, uint256 _marketingFeeOnBuy, uint256 _bigEyesDistributionFeeOnBuy) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_liquidityFeeOnBuy < 100, "Fee should be less than 100!");
-        require(_marketingFeeOnBuy < 100, "Fee should be less than 100!");
-        require(_bigEyesDistributionFeeOnBuy < 100, "Fee should be less than 100!");
+    function changeFeesForNormalBuy(uint256 _liquidityFeeOnBuy, uint256 _marketingFeeOnBuy, uint256 _distributionFeeOnBuy) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_liquidityFeeOnBuy <= _feeDivisor, "Liquidity fee above 100%");
+        require(_marketingFeeOnBuy <= _feeDivisor, "Marketing fee above 100%");
+        require(_distributionFeeOnBuy <= _feeDivisor, "Distribution fee above 100%");
         onBuyFees.liquidity = _liquidityFeeOnBuy;
         onBuyFees.marketing = _marketingFeeOnBuy;
-        onBuyFees.distribution = _bigEyesDistributionFeeOnBuy;
-        emit ChangeFeesForNormalBuy(_liquidityFeeOnBuy, _marketingFeeOnBuy, _bigEyesDistributionFeeOnBuy);
+        onBuyFees.distribution = _distributionFeeOnBuy;
+        emit ChangeFeesForNormalBuy(_liquidityFeeOnBuy, _marketingFeeOnBuy, _distributionFeeOnBuy);
     }
 
-    function changeFeesForNormalSell(uint256 _liquidityFeeOnSell, uint256 _marketingFeeOnSell, uint256 _bigEyesDistributionFeeOnSell) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_liquidityFeeOnSell < 100, "Fee should be less than 100!");
-        require(_marketingFeeOnSell < 100, "Fee should be less than 100!");
-        require(_bigEyesDistributionFeeOnSell < 100, "Fee should be less than 100!");
+    function changeFeesForNormalSell(uint256 _liquidityFeeOnSell, uint256 _marketingFeeOnSell, uint256 _distributionFeeOnSell) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_liquidityFeeOnSell <= _feeDivisor, "Liquidity fee above 100%");
+        require(_marketingFeeOnSell <= _feeDivisor, "Marketing fee above 100%");
+        require(_distributionFeeOnSell <= _feeDivisor, "Distribution fee above 100%");
         onSellFees.liquidity = _liquidityFeeOnSell;
         onSellFees.marketing = _marketingFeeOnSell;
-        onSellFees.distribution = _bigEyesDistributionFeeOnSell;
-        emit ChangeFeesForNormalSell(_liquidityFeeOnSell, _marketingFeeOnSell, _bigEyesDistributionFeeOnSell);
+        onSellFees.distribution = _distributionFeeOnSell;
+        emit ChangeFeesForNormalSell(_liquidityFeeOnSell, _marketingFeeOnSell, _distributionFeeOnSell);
     }
 
     function updateMarketingWallet(address _marketingWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
