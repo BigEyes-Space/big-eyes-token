@@ -18,8 +18,8 @@ contract BigEyes is BurnableReflectionERC20, TokenRecover, NativeTokenReceiver {
         uint256 initialBalance,
         bytes16 slippageFactor, 
         address router_,
-        uint8[] memory onBuyFees,
-        uint8[] memory onSellFees
+        uint256[] memory onBuyFees,
+        uint256[] memory onSellFees
     ) payable ReflectionERC20(name, symbol, slippageFactor, router_, _msgSender(), onBuyFees, onSellFees) {
     // ) payable ERC20(name, symbol) {
         _mint(initialAccount, initialBalance);

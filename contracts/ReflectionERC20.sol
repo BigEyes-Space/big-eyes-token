@@ -27,9 +27,9 @@ struct ReflectionParameters{
 }
 
 struct Fees {
-    uint8 liquidity;
-    uint8 marketing;
-    uint8 distribution;
+    uint256 liquidity;
+    uint256 marketing;
+    uint256 distribution;
 }
 
 contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMin, Swapping {
@@ -50,12 +50,14 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     address[] private _excluded;
 
     uint256 private constant _MAX = ~uint256(0);
-    uint256 private constant _FEE_DIVISOR = 1000;
+    // uint256 private constant _FEE_DIVISOR = 1000;
+    uint256 private _feeMultiplier;
+    uint256 private _feeDivisor;
 
     uint256 public launchedAt;
 
     address public marketingWallet;
-    address private constant _DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address private _autoLiquidityReceiver;
 
     Fees public onBuyFees;
     Fees public onSellFees;
@@ -67,8 +69,8 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
     event IncludeInReflection(address indexed account);
     event ExcludeFromReflection(address indexed account);
     event UpdateMarketingWallet(address indexed marketingWallet);
-    event ChangeFeesForNormalSell(uint8 indexed liquidityFeeOnSell, uint8 indexed marketingFeeOnSell, uint8 indexed bigEyesDistributionFeeOnSell);
-    event ChangeFeesForNormalBuy(uint8 indexed liquidityFeeOnBuy, uint8 indexed marketingFeeOnBuy, uint8 indexed bigEyesDistributionFeeOnBuy);
+    event ChangeFeesForNormalSell(uint256 indexed liquidityFeeOnSell, uint256 indexed marketingFeeOnSell, uint256 indexed bigEyesDistributionFeeOnSell);
+    event ChangeFeesForNormalBuy(uint256 indexed liquidityFeeOnBuy, uint256 indexed marketingFeeOnBuy, uint256 indexed bigEyesDistributionFeeOnBuy);
     event UpdateUniSwapRouter(address indexed dexRouter);
 
     event SwapAndLiquify(uint256 indexed ethReceived, uint256 indexed tokensIntoLiqudity);
@@ -79,8 +81,8 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         bytes16 slippageFactor_, 
         address router_, 
         address marketingWallet_,
-        uint8[] memory onBuyFees_,
-        uint8[] memory onSellFees_
+        uint256[] memory onBuyFees_,
+        uint256[] memory onSellFees_
         ) CalculateAmountOutMin(slippageFactor_, router_)
         ERC20Metadata(name_, symbol_, 9) {
 
@@ -105,6 +107,15 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _isExcludedFromFee[address(this)] = true;
         _isExcludedFromFee[address(0)] = true;
         _isExcludedFromFee[marketingWallet] = true;
+
+        if (/*lockLiquidityForever_*/ true) {
+            _autoLiquidityReceiver = address(0);
+        } else {
+            _autoLiquidityReceiver = address(this);
+        }
+
+        _feeMultiplier = 10;
+        _feeDivisor = 100*_feeMultiplier;
     }
 
     function excludeFromReflection(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -252,9 +263,9 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
     function _normalBuy(address sender, address recipient, uint256 amount) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(_FEE_DIVISOR);
-        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(_FEE_DIVISOR);
-        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(_FEE_DIVISOR);
+        uint256 liquidityFee = (amount * onBuyFees.liquidity).roundDiv(_feeDivisor);
+        uint256 distributionFee = (amount * onBuyFees.distribution).roundDiv(_feeDivisor);
+        uint256 marketingFee = (amount * onBuyFees.marketing).roundDiv(_feeDivisor);
         uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
         updateBalance(sender, amount, currentRate, false);
         updateBalance(recipient, transferAmount, currentRate, true);
@@ -270,9 +281,9 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
 
     function _normalSell(address sender, address recipient, uint256 amount) private {
         uint256 currentRate = _getRate();
-        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(_FEE_DIVISOR);
-        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(_FEE_DIVISOR);
-        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(_FEE_DIVISOR);
+        uint256 liquidityFee = (amount * onSellFees.liquidity).roundDiv(_feeDivisor);
+        uint256 distributionFee = (amount * onSellFees.distribution).roundDiv(_feeDivisor);
+        uint256 marketingFee = (amount * onSellFees.marketing).roundDiv(_feeDivisor);
         uint256 transferAmount = amount - liquidityFee - distributionFee - marketingFee;
 
         updateBalance(sender, amount, currentRate, false);
@@ -322,7 +333,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
             amountAnotherHalf,
             0,
             0,
-            _DEAD_ADDRESS,
+            _autoLiquidityReceiver,
             // solhint-disable-next-line not-rely-on-time
             block.timestamp + 30
         );
@@ -393,7 +404,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _isExcludedFromFee[account] = flag;
     }
 
-    function changeFeesForNormalBuy(uint8 _liquidityFeeOnBuy, uint8 _marketingFeeOnBuy, uint8 _bigEyesDistributionFeeOnBuy) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function changeFeesForNormalBuy(uint256 _liquidityFeeOnBuy, uint256 _marketingFeeOnBuy, uint256 _bigEyesDistributionFeeOnBuy) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_liquidityFeeOnBuy < 100, "Fee should be less than 100!");
         require(_marketingFeeOnBuy < 100, "Fee should be less than 100!");
         require(_bigEyesDistributionFeeOnBuy < 100, "Fee should be less than 100!");
@@ -403,7 +414,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         emit ChangeFeesForNormalBuy(_liquidityFeeOnBuy, _marketingFeeOnBuy, _bigEyesDistributionFeeOnBuy);
     }
 
-    function changeFeesForNormalSell(uint8 _liquidityFeeOnSell, uint8 _marketingFeeOnSell, uint8 _bigEyesDistributionFeeOnSell) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function changeFeesForNormalSell(uint256 _liquidityFeeOnSell, uint256 _marketingFeeOnSell, uint256 _bigEyesDistributionFeeOnSell) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_liquidityFeeOnSell < 100, "Fee should be less than 100!");
         require(_marketingFeeOnSell < 100, "Fee should be less than 100!");
         require(_bigEyesDistributionFeeOnSell < 100, "Fee should be less than 100!");
