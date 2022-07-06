@@ -83,7 +83,8 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         address marketingWallet_,
         uint256[] memory onBuyFees_,
         uint256[] memory onSellFees_,
-        uint256 feeMultiplier_
+        uint256 feeMultiplier_,
+        bool lockLiquidityForever_
         ) CalculateAmountOutMin(slippageFactor_, router_)
         ERC20Metadata(name_, symbol_, 9) {
 
@@ -109,7 +110,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         _isExcludedFromFee[address(0)] = true;
         _isExcludedFromFee[marketingWallet] = true;
 
-        if (/*lockLiquidityForever_*/ true) {
+        if (lockLiquidityForever_) {
             _autoLiquidityReceiver = address(0);
         } else {
             _autoLiquidityReceiver = address(this);
