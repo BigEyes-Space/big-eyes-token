@@ -97,13 +97,8 @@ contract ReflectionERC20 is
         address marketingWallet_,
         uint256[] memory onBuyFees_,
         uint256[] memory onSellFees_,
-<<<<<<< HEAD
-        bool lockLiquidityForever_,
-        uint256 feeMultiplier_
-=======
         uint256 feeMultiplier_,
         bool lockLiquidityForever_
->>>>>>> workspace
     )
         CalculateAmountOutMin(slippageFactor_, router_)
         ERC20Metadata(name_, symbol_, 9)
@@ -135,11 +130,7 @@ contract ReflectionERC20 is
         }
 
         _feeMultiplier = feeMultiplier_;
-<<<<<<< HEAD
-        _feeDivisor = 100*_feeMultiplier;
-=======
         _feeDivisor = 100 * _feeMultiplier;
->>>>>>> workspace
     }
 
     function excludeFromReflection(address account)
@@ -562,17 +553,10 @@ contract ReflectionERC20 is
         uint256 _marketingFeeOnBuy,
         uint256 _distributionFeeOnBuy
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-<<<<<<< HEAD
-        require(_liquidityFeeOnBuy < _feeDivisor, "Liquidity fee above 100%");
-        require(_marketingFeeOnBuy < _feeDivisor, "Marketing fee above 100%");
-        require(
-            _distributionFeeOnBuy < _feeDivisor,
-=======
         require(_liquidityFeeOnBuy <= _feeDivisor, "Liquidity fee above 100%");
         require(_marketingFeeOnBuy <= _feeDivisor, "Marketing fee above 100%");
         require(
             _distributionFeeOnBuy <= _feeDivisor,
->>>>>>> workspace
             "Distribution fee above 100%"
         );
         onBuyFees.liquidity = _liquidityFeeOnBuy;
@@ -590,17 +574,10 @@ contract ReflectionERC20 is
         uint256 _marketingFeeOnSell,
         uint256 _distributionFeeOnSell
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-<<<<<<< HEAD
-        require(_liquidityFeeOnSell < _feeDivisor, "Liquidity fee above 100%");
-        require(_marketingFeeOnSell < _feeDivisor, "Marketing fee above 100%");
-        require(
-            _distributionFeeOnSell < _feeDivisor,
-=======
         require(_liquidityFeeOnSell <= _feeDivisor, "Liquidity fee above 100%");
         require(_marketingFeeOnSell <= _feeDivisor, "Marketing fee above 100%");
         require(
             _distributionFeeOnSell <= _feeDivisor,
->>>>>>> workspace
             "Distribution fee above 100%"
         );
         onSellFees.liquidity = _liquidityFeeOnSell;
