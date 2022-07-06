@@ -89,7 +89,7 @@ const deductionsCheck = (endBalance, initialBalance, idealAmountOfBigEyesToRecei
 
 describe('Uniswap router contract', () => {
   beforeEach(async () => {
-    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'UniswapV2Library', 'Bytes32Utils', 'ABDKMathQuad', 'RoundDiv', 'WETH', 'StringsLib'])
+    await deployments.fixture(['BigEyes', 'UniswapV2Router02', 'UniswapV2Factory', 'Bytes32Utils', 'ABDKMathQuad', 'RoundDiv', 'WETH', 'StringsLib'])
     this.factory = await ethers.getContract('UniswapV2Factory')
     this.bigEyes = await ethers.getContract('BigEyes')
     this.wETH = await ethers.getContract('WETH')
@@ -99,6 +99,22 @@ describe('Uniswap router contract', () => {
     const deploymentArgs = await getDeploymentArguments({ ...namedSigners, router: this.router, aBDKMathQuadLibrary })
     this.liquiditySupply = [ethers.utils.parseEther('1'), deploymentArgs.initialBalance.div(888)]
     Object.assign(this, namedSigners, deploymentArgs)
+  })
+  describe('', async () => {
+    let newRouter
+    beforeEach('', async () => {
+      const uniswapV2FactoryContract = await ethers.getContractFactory('UniswapV2Factory')
+      const uniswapV2Factory = await uniswapV2FactoryContract.deploy(this.deployer.address)
+      const wETH = await ethers.getContract('WETH')
+      const UniswapV2Contract = await ethers.getContractFactory('UniswapV2Router02')
+      newRouter = await UniswapV2Contract.deploy(uniswapV2Factory.address, wETH.address)
+    })
+    it('Should emit UpdateUniSwapRouter event', async () => {
+      const newRouterAddress = newRouter.address
+      await expect(this.bigEyes.connect(this.deployer).updateUniSwapRouter(newRouterAddress))
+        .to.emit(this.bigEyes, 'UpdateUniSwapRouter')
+        .withArgs(newRouterAddress)
+    })
   })
   it('Should be able to add liquidity to uniswap contract', async () => {
     await addLiquidity(
