@@ -5,7 +5,10 @@ import { getDeploymentArgumentsForNFTs } from '../src/getDeploymentArgumentsForN
 // We import Chai to use its asserting functions here.
 import { expect } from './utils/chai-setup'
 import { BigNumber } from 'ethers'
+import { ethers } from 'hardhat'
 
+const INTERFACE_ID_IERC721 = '0x80ac58cd'
+const INTERFACE_ID_IERC165 = '0x01ffc9a7'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 const getRandomNumber = () => {
@@ -14,6 +17,21 @@ const getRandomNumber = () => {
 
 function getRandomNumberBetween (min, max) {
   return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+const getURL = (preamble, hash, name, appearance, story) => {
+  let url = `${preamble}?hash=${hash}&name=${name}&appearance=${appearance}&story=${story}`
+  url = url.replace(/ /g, '%20').replace(/[.]/g, '%2e')
+  return url
+}
+
+const getNFTHashFromLastEvent = async (self) => {
+  const eventFilter = self.bigEyesNFTs.filters.NFTMinted()
+  const events = await self.bigEyesNFTs.queryFilter(eventFilter)
+  const hashRegex = /(?<=hash=).*?(?=&)/
+  const hash = hashRegex.exec(events[0].args[2])[0]
+  const theEvent = events[0]
+  return { hash, theEvent} 
 }
 
 describe('BigEyes contract', () => {
@@ -30,6 +48,17 @@ describe('BigEyes contract', () => {
       await getDeploymentArguments({ ...namedSigners, router, aBDKMathQuadLibrary }),
       await getDeploymentArgumentsForNFTs({ ...namedSigners, bigEyes: this.bigEyes })
     )
+  })
+  describe('ERC20 Metadata', async () => {
+    it('Should be able to read token decimals', async () => {
+      expect(await this.bigEyes.decimals()).to.be.equal(9)
+    })
+    it('Should be able to read token name', async () => {
+      expect(await this.bigEyes.name()).to.be.equal(this.name)
+    })
+    it('Should be able to read token name', async () => {
+      expect(await this.bigEyes.symbol()).to.be.equal(this.symbol)
+    })
   })
   it('Should be able to transfer BigEyes tokens', async () => {
     const amountToTransfer = this.initialBalance
@@ -210,10 +239,26 @@ describe('BigEyes contract', () => {
       })
     })
     describe('After minting', async () => {
-      let balanceBefore
+      let balanceBefore, mintedNFT
       beforeEach(async () => {
         balanceBefore = await this.bigEyes.balanceOf(this.deployer.address)
-        await this.bigEyesNFTs.connect(this.deployer).mintNFT(this.first.address, 0, getRandomNumber(), [], nftData[0].name, nftData[0].appearance, nftData[0].story)
+        mintedNFT = await this.bigEyesNFTs.connect(this.deployer).mintNFT(this.first.address, 0, getRandomNumber(), [], nftData[0].name, nftData[0].appearance, nftData[0].story)
+      })
+      describe('', async () => {
+        let bigEyesNFT
+        beforeEach(async () => {
+          const bigEyesNFTAddress = await this.bigEyesNFTs.bigEyesNFT.call()
+          bigEyesNFT = await ethers.getContractAt('BigEyesNFT', bigEyesNFTAddress)          
+        })
+        it('Should be able to read NFT token URI', async () => {
+          const { hash } = await getNFTHashFromLastEvent(this)
+          const tokenURI = await bigEyesNFT.tokenURI(0)
+          expect(tokenURI).to.be.equal(getURL("https://characters.bigeyes.space/", hash, nftData[0].name, nftData[0].appearance, nftData[0].story))
+        })
+        it('Should support ERC721 and ERC165 interfaces', async () => {
+          expect(await bigEyesNFT.supportsInterface(INTERFACE_ID_IERC721)).to.be.true
+          expect(await bigEyesNFT.supportsInterface(INTERFACE_ID_IERC165)).to.be.true
+        })
       })
       it('Should charge NFT price for the mint', async () => {
         const balanceAfter = await this.bigEyes.balanceOf(this.deployer.address)
@@ -282,14 +327,10 @@ describe('BigEyes contract', () => {
         })
         it('Should emit event with new url', async () => {
           await this.bigEyesNFTs.connect(this.deployer).mintNFT(this.first.address, 0, getRandomNumber(), [], nftData[0].name, nftData[0].appearance, nftData[0].story)
-          let url = `${newPreamble}?hash=${nftData[2].hash}&name=${nftData[0].name}&appearance=${nftData[0].appearance}&story=${nftData[0].story}`
-          url = url.replace(/ /g, '%20').replace(/[.]/g, '%2e')
-          const eventFilter = this.bigEyesNFTs.filters.NFTMinted()
-          const events = await this.bigEyesNFTs.queryFilter(eventFilter)
-          const hashRegex = /(?<=hash=).*(?=&)/
-          expect(events[0].args[0]).to.be.equal(this.deployer.address)
-          expect(events[0].args[1]).to.be.equal(this.first.address)
-          expect(events[0].args[2].replace(hashRegex, '')).to.be.equal(url.replace(hashRegex, ''))
+          const { hash, theEvent } = await getNFTHashFromLastEvent(this)
+          expect(theEvent.args[0]).to.be.equal(this.deployer.address)
+          expect(theEvent.args[1]).to.be.equal(this.first.address)
+          expect(theEvent.args[2]).to.be.equal(getURL(newPreamble, hash, nftData[0].name, nftData[0].appearance, nftData[0].story))
         })
       })
     })
