@@ -82,7 +82,8 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
         address router_, 
         address marketingWallet_,
         uint256[] memory onBuyFees_,
-        uint256[] memory onSellFees_
+        uint256[] memory onSellFees_,
+        uint256 feeMultiplier_
         ) CalculateAmountOutMin(slippageFactor_, router_)
         ERC20Metadata(name_, symbol_, 9) {
 
@@ -114,7 +115,7 @@ contract ReflectionERC20 is IERC20, ERC20Metadata, Context, CalculateAmountOutMi
             _autoLiquidityReceiver = address(this);
         }
 
-        _feeMultiplier = 10;
+        _feeMultiplier = feeMultiplier_;
         _feeDivisor = 100*_feeMultiplier;
     }
 

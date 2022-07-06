@@ -6,7 +6,7 @@ import { expect } from './utils/chai-setup'
 import { ethers } from 'hardhat'
 import { constants } from 'ethers'
 
-const feesReduction = (self, theArray) => theArray.reduce((total, num) => total + num / 100 / 10, 0)
+const feesReduction = (self, theArray) => theArray.reduce((total, num) => total + num / 100 / self.feeMultiplier, 0)
 
 const addLiquidity = async (self, supplier, amounts) => {
   const wETHAmount = amounts[0]
